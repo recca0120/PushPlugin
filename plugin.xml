@@ -4,7 +4,7 @@
     xmlns:amazon="http://schemas.android.com/apk/lib/com.amazon.device.ads"
     xmlns:rim="http://www.blackberry.com/ns/widgets"
     id="com.phonegap.plugins.PushPlugin"
-    version="2.4.0">
+    version="2.4.1">
 
   <name>PushPlugin</name>
 	<author>Bob Easterday</author>
@@ -44,6 +44,14 @@
 			<uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
 			<permission android:name="$PACKAGE_NAME.permission.C2D_MESSAGE" android:protectionLevel="signature" />
 			<uses-permission android:name="$PACKAGE_NAME.permission.C2D_MESSAGE" />
+			<uses-permission android:name="com.android.launcher.permission.READ_SETTINGS" />
+			<uses-permission android:name="com.android.launcher.permission.WRITE_SETTINGS" />
+			<uses-permission android:name="com.sec.android.provider.badge.permission.READ" />
+			<uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" />
+			<uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS" />
+			<uses-permission android:name="com.htc.launcher.permission.UPDATE_SHORTCUT" />
+			<uses-permission android:name="com.sonyericsson.home.permission.BROADCAST_BADGE" />
+			<uses-permission android:name="com.anddoes.launcher.permission.UPDATE_COUNT" />
 		</config-file>
 
 		<config-file target="AndroidManifest.xml" parent="/manifest/application">
@@ -64,6 +72,18 @@
 		<source-file src="src/android/com/plugin/gcm/PushHandlerActivity.java" target-dir="src/com/plugin/gcm/" />
 		<source-file src="src/android/com/plugin/gcm/PushPlugin.java" target-dir="src/com/plugin/gcm/" />
 		<source-file src="src/android/com/plugin/android-support-v13.jar" target-dir="libs/" />
+		<source-file src="src/android/me/leolin/shortcutbadger/ShortcutBadgeException.java" target-dir="src/me/leolin/shortcutbadger/" />
+		<source-file src="src/android/me/leolin/shortcutbadger/ShortcutBadger.java" target-dir="src/me/leolin/shortcutbadger/" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/AdwHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/AndroidHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/ApexHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/hTCHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/LGHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/NewHtcHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/NovaHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/SamsungHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/impl/SonyHomeBadger.java" target-dir="src/me/leolin/shortcutbadger/impl" />
+		<source-file src="src/android/me/leolin/shortcutbadger/util/ImageUtil.java" target-dir="src/me/leolin/shortcutbadger/util" />
 
 	</platform>
 

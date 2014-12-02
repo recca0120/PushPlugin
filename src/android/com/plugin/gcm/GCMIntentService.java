@@ -15,6 +15,8 @@ import android.util.Log;
 
 import com.google.android.gcm.GCMBaseIntentService;
 
+import me.leolin.shortcutbadger.*;
+
 @SuppressLint("NewApi")
 public class GCMIntentService extends GCMBaseIntentService {
 
@@ -63,6 +65,11 @@ public class GCMIntentService extends GCMBaseIntentService {
 		Bundle extras = intent.getExtras();
 		if (extras != null)
 		{
+			// Show the badge if there is one
+			if(extras.containsKey("badge")) {
+				showBadge(context, extras);
+			}
+
 			// if we are in the foreground, just surface the payload, else post it to the statusbar
             if (PushPlugin.isInForeground()) {
 				extras.putBoolean("foreground", true);
@@ -77,6 +84,18 @@ public class GCMIntentService extends GCMBaseIntentService {
                 }
             }
         }
+	}
+
+	private void showBadge(Context context, Bundle extras) 
+	{		
+		int badge = Integer.parseInt(extras.getString("badge"));
+		Log.d(TAG, "showBadge: " + badge);
+		try {
+			ShortcutBadger.setBadge(getApplicationContext(), badge);
+			Log.d(TAG, "showBadge worked!");  
+	    } catch (ShortcutBadgeException e) {
+	        Log.e(TAG, "showBadge failed: " + e.getMessage());
+	    }
 	}
 
 	public void createNotification(Context context, Bundle extras)
