@@ -54,6 +54,7 @@
 #endif
     UIRemoteNotificationType notificationTypes = UIRemoteNotificationTypeNone;
 
+    if ([options respondsToSelector:@selector(objectForKey:)]) {
     id badgeArg = [options objectForKey:@"badge"];
     id soundArg = [options objectForKey:@"sound"];
     id alertArg = [options objectForKey:@"alert"];
@@ -112,6 +113,7 @@
 #endif
 
     self.callback = [options objectForKey:@"ecb"];
+    }
 
     if (notificationTypes == UIRemoteNotificationTypeNone)
         NSLog(@"PushPlugin.register: Push notification type is set to none");
