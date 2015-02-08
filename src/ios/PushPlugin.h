@@ -27,6 +27,8 @@
 #import <Cordova/CDV.h>
 #import <Cordova/CDVPlugin.h>
 
+#define SYSTEM_VERSION_LESS_THAN(v) ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedAscending)
+
 @interface PushPlugin : CDVPlugin
 {
     NSDictionary *notificationMessage;

@@ -158,7 +158,12 @@
         [results setValue:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] forKey:@"appVersion"];
 
         // Check what Notifications the user has turned on.  We registered for all three, but they may have manually disabled some or all of them.
-        NSUInteger rntypes = [[UIApplication sharedApplication] enabledRemoteNotificationTypes];
+        NSUInteger rntypes;
+        if (!SYSTEM_VERSION_LESS_THAN(@"8.0")) {
+            rntypes = [[[UIApplication sharedApplication] currentUserNotificationSettings] types];
+        } else {
+            rntypes = [[UIApplication sharedApplication] enabledRemoteNotificationTypes];
+        }
 
         // Set the defaults to disabled unless we find otherwise...
         NSString *pushBadge = @"disabled";
@@ -251,14 +256,48 @@
     }
 }
 
+#ifdef __IPHONE_8_0
+
+- (BOOL)checkNotificationType:(UIUserNotificationType)type
+{
+  UIUserNotificationSettings *currentSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
+  
+  return (currentSettings.types & type);
+}
+
+#endif
+
 - (void)setApplicationIconBadgeNumber:(CDVInvokedUrlCommand *)command {
 
     self.callbackId = command.callbackId;
 
     NSMutableDictionary* options = [command.arguments objectAtIndex:0];
     int badge = [[options objectForKey:@"badge"] intValue] ?: 0;
+    UIApplication *application = [UIApplication sharedApplication];
 
-    [[UIApplication sharedApplication] setApplicationIconBadgeNumber:badge];
+#ifdef __IPHONE_8_0
+    // compile with Xcode 6 or higher (iOS SDK >= 8.0)
+  
+    if(SYSTEM_VERSION_LESS_THAN(@"8.0"))
+    {
+       application.applicationIconBadgeNumber = badge;
+    }
+    else
+    {
+       if ([self checkNotificationType:UIUserNotificationTypeBadge])
+       {
+          NSLog(@"badge number changed to %d", badge);
+          application.applicationIconBadgeNumber = badge;
+       }
+       else
+          NSLog(@"access denied for UIUserNotificationTypeBadge");
+    }
+  
+#else
+    // compile with Xcode 5 (iOS SDK < 8.0)
+    application.applicationIconBadgeNumber = badgeNumber;
+  
+#endif
 
     [self successWithMessage:[NSString stringWithFormat:@"app badge count set to %d", badge]];
 }
