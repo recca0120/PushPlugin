@@ -54,4 +54,7 @@
 - (void)setNotificationMessage:(NSDictionary *)notification;
 - (void)notificationReceived;
 
+- (NSMutableString *) buildNotification:(NSDictionary *)notification;
+- (NSMutableString *) buildNotification:(NSDictionary *)notification escapeQuotes:(BOOL) escapeQuotes;
+
 @end

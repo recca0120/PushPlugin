@@ -38,6 +38,7 @@
 - (void)unregister:(CDVInvokedUrlCommand*)command;
 {
 	self.callbackId = command.callbackId;
+    ready = NO;
 
     [[UIApplication sharedApplication] unregisterForRemoteNotifications];
     [self successWithMessage:@"unregistered"];
@@ -194,7 +195,19 @@
         [results setValue:dev.model forKey:@"deviceModel"];
         [results setValue:dev.systemVersion forKey:@"deviceSystemVersion"];
 
-		[self successWithMessage:[NSString stringWithFormat:@"%@", token]];
+        ready = YES;
+  
+        NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
+        [jsonStr appendFormat:@"\"token\":\"%@\", ", token];
+        if (notificationMessage) {
+            [jsonStr appendFormat:@"\"notification\":\"%@\"", [self buildNotification:notificationMessage escapeQuotes:YES]];
+            notificationMessage = nil;
+        } else {
+            [jsonStr appendFormat:@"\"notification\":\"%@\"", @""];
+        }
+        [jsonStr appendString:@"}"];
+
+		[self successWithMessage:jsonStr];
     #endif
 }
 
@@ -203,32 +216,44 @@
 	[self failWithMessage:@"" withError:error];
 }
 
-- (void)notificationReceived {
-    NSLog(@"Notification received");
+- (NSMutableString *) buildNotification:(NSDictionary *)notification {
+    return [self buildNotification:notification escapeQuotes:NO];
+}
 
-    if (notificationMessage && self.callback)
-    {
-        NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
-
-        [self parseDictionary:notificationMessage intoJSON:jsonStr];
-
-        if (isInline)
-        {
-            [jsonStr appendFormat:@"foreground:\"%d\"", 1];
-            isInline = NO;
-        }
-		else
-            [jsonStr appendFormat:@"foreground:\"%d\"", 0];
-
-        [jsonStr appendString:@"}"];
-
-        NSLog(@"Msg: %@", jsonStr);
-
-        NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
-        [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
-
-        self.notificationMessage = nil;
+- (NSMutableString *) buildNotification:(NSDictionary *)notification escapeQuotes:(BOOL) escapeQuotes {
+    NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
+  
+    [self parseDictionary:notificationMessage intoJSON:jsonStr];
+  
+    if (isInline) {
+        [jsonStr appendFormat:@"\"foreground\":\"%d\"", 1];
+        isInline = NO;
+    } else {
+        [jsonStr appendFormat:@"\"foreground\":\"%d\"", 0];
     }
+  
+    [jsonStr appendString:@"}"];
+    if (escapeQuotes) {
+        NSMutableString *escapedJsonStr = [[jsonStr stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""] mutableCopy];
+        return escapedJsonStr;
+    } else {
+        return jsonStr;
+    }
+}
+
+- (void)notificationReceived {
+    if (!notificationMessage || !ready || !self.callback) {
+        return;
+    }
+
+    NSMutableString *jsonStr = [self buildNotification:notificationMessage];
+
+    NSLog(@"Msg: %@", jsonStr);
+
+    NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
+    NSString *result = [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
+  
+    self.notificationMessage = nil;
 }
 
 // reentrant method to drill down and surface all sub-dictionaries' key/value pairs into the top level json
