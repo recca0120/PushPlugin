@@ -38,6 +38,7 @@
 - (void)unregister:(CDVInvokedUrlCommand*)command;
 {
 	self.callbackId = command.callbackId;
+    ready = NO;
 
     [[UIApplication sharedApplication] unregisterForRemoteNotifications];
     [self successWithMessage:@"unregistered"];
@@ -54,6 +55,7 @@
 #endif
     UIRemoteNotificationType notificationTypes = UIRemoteNotificationTypeNone;
 
+    if ([options respondsToSelector:@selector(objectForKey:)]) {
     id badgeArg = [options objectForKey:@"badge"];
     id soundArg = [options objectForKey:@"sound"];
     id alertArg = [options objectForKey:@"alert"];
@@ -112,6 +114,7 @@
 #endif
 
     self.callback = [options objectForKey:@"ecb"];
+    }
 
     if (notificationTypes == UIRemoteNotificationTypeNone)
         NSLog(@"PushPlugin.register: Push notification type is set to none");
@@ -156,7 +159,12 @@
         [results setValue:[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] forKey:@"appVersion"];
 
         // Check what Notifications the user has turned on.  We registered for all three, but they may have manually disabled some or all of them.
-        NSUInteger rntypes = [[UIApplication sharedApplication] enabledRemoteNotificationTypes];
+        NSUInteger rntypes;
+        if (!SYSTEM_VERSION_LESS_THAN(@"8.0")) {
+            rntypes = [[[UIApplication sharedApplication] currentUserNotificationSettings] types];
+        } else {
+            rntypes = [[UIApplication sharedApplication] enabledRemoteNotificationTypes];
+        }
 
         // Set the defaults to disabled unless we find otherwise...
         NSString *pushBadge = @"disabled";
@@ -187,7 +195,19 @@
         [results setValue:dev.model forKey:@"deviceModel"];
         [results setValue:dev.systemVersion forKey:@"deviceSystemVersion"];
 
-		[self successWithMessage:[NSString stringWithFormat:@"%@", token]];
+        ready = YES;
+  
+        NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
+        [jsonStr appendFormat:@"\"token\":\"%@\", ", token];
+        if (notificationMessage) {
+            [jsonStr appendFormat:@"\"notification\":\"%@\"", [self buildNotification:notificationMessage escapeQuotes:YES]];
+            notificationMessage = nil;
+        } else {
+            [jsonStr appendFormat:@"\"notification\":\"%@\"", @""];
+        }
+        [jsonStr appendString:@"}"];
+
+		[self successWithMessage:jsonStr];
     #endif
 }
 
@@ -196,32 +216,44 @@
 	[self failWithMessage:@"" withError:error];
 }
 
-- (void)notificationReceived {
-    NSLog(@"Notification received");
+- (NSMutableString *) buildNotification:(NSDictionary *)notification {
+    return [self buildNotification:notification escapeQuotes:NO];
+}
 
-    if (notificationMessage && self.callback)
-    {
-        NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
-
-        [self parseDictionary:notificationMessage intoJSON:jsonStr];
-
-        if (isInline)
-        {
-            [jsonStr appendFormat:@"foreground:\"%d\"", 1];
-            isInline = NO;
-        }
-		else
-            [jsonStr appendFormat:@"foreground:\"%d\"", 0];
-
-        [jsonStr appendString:@"}"];
-
-        NSLog(@"Msg: %@", jsonStr);
-
-        NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
-        [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
-
-        self.notificationMessage = nil;
+- (NSMutableString *) buildNotification:(NSDictionary *)notification escapeQuotes:(BOOL) escapeQuotes {
+    NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
+  
+    [self parseDictionary:notificationMessage intoJSON:jsonStr];
+  
+    if (isInline) {
+        [jsonStr appendFormat:@"\"foreground\":\"%d\"", 1];
+        isInline = NO;
+    } else {
+        [jsonStr appendFormat:@"\"foreground\":\"%d\"", 0];
     }
+  
+    [jsonStr appendString:@"}"];
+    if (escapeQuotes) {
+        NSMutableString *escapedJsonStr = [[jsonStr stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""] mutableCopy];
+        return escapedJsonStr;
+    } else {
+        return jsonStr;
+    }
+}
+
+- (void)notificationReceived {
+    if (!notificationMessage || !ready || !self.callback) {
+        return;
+    }
+
+    NSMutableString *jsonStr = [self buildNotification:notificationMessage];
+
+    NSLog(@"Msg: %@", jsonStr);
+
+    NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
+    NSString *result = [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
+  
+    self.notificationMessage = nil;
 }
 
 // reentrant method to drill down and surface all sub-dictionaries' key/value pairs into the top level json
@@ -249,14 +281,48 @@
     }
 }
 
+#ifdef __IPHONE_8_0
+
+- (BOOL)checkNotificationType:(UIUserNotificationType)type
+{
+  UIUserNotificationSettings *currentSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
+  
+  return (currentSettings.types & type);
+}
+
+#endif
+
 - (void)setApplicationIconBadgeNumber:(CDVInvokedUrlCommand *)command {
 
     self.callbackId = command.callbackId;
 
     NSMutableDictionary* options = [command.arguments objectAtIndex:0];
     int badge = [[options objectForKey:@"badge"] intValue] ?: 0;
+    UIApplication *application = [UIApplication sharedApplication];
 
-    [[UIApplication sharedApplication] setApplicationIconBadgeNumber:badge];
+#ifdef __IPHONE_8_0
+    // compile with Xcode 6 or higher (iOS SDK >= 8.0)
+  
+    if(SYSTEM_VERSION_LESS_THAN(@"8.0"))
+    {
+       application.applicationIconBadgeNumber = badge;
+    }
+    else
+    {
+       if ([self checkNotificationType:UIUserNotificationTypeBadge])
+       {
+          NSLog(@"badge number changed to %d", badge);
+          application.applicationIconBadgeNumber = badge;
+       }
+       else
+          NSLog(@"access denied for UIUserNotificationTypeBadge");
+    }
+  
+#else
+    // compile with Xcode 5 (iOS SDK < 8.0)
+    application.applicationIconBadgeNumber = badgeNumber;
+  
+#endif
 
     [self successWithMessage:[NSString stringWithFormat:@"app badge count set to %d", badge]];
 }
