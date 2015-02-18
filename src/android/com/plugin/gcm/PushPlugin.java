@@ -15,9 +15,11 @@ import org.json.JSONObject;
 
 import java.util.Iterator;
 
+import me.leolin.shortcutbadger.*;
+
 /**
- * @author awysocki
- */
+* @author awysocki
+*/
 
 public class PushPlugin extends CordovaPlugin {
 	public static final String TAG = "PushPlugin";
@@ -25,17 +27,18 @@ public class PushPlugin extends CordovaPlugin {
 	public static final String REGISTER = "register";
 	public static final String UNREGISTER = "unregister";
 	public static final String EXIT = "exit";
+	public static final String SET_APPLICATION_ICON_BADGE_NUMBER = "setApplicationIconBadgeNumber";
 
 	private static CordovaWebView gWebView;
 	private static String gECB;
 	private static String gSenderID;
 	private static Bundle gCachedExtras = null;
-    private static boolean gForeground = false;
+	private static boolean gForeground = false;
 
 	/**
-	 * Gets the application context from cordova's main activity.
-	 * @return the application context
-	 */
+	* Gets the application context from cordova's main activity.
+	* @return the application context
+	*/
 	private Context getApplicationContext() {
 		return this.cordova.getActivity().getApplicationContext();
 	}
@@ -84,6 +87,19 @@ public class PushPlugin extends CordovaPlugin {
 			Log.v(TAG, "UNREGISTER");
 			result = true;
 			callbackContext.success();
+		} else if (SET_APPLICATION_ICON_BADGE_NUMBER.equals(action)) {
+			try {
+				JSONObject jo = data.getJSONObject(0);
+				Integer badge = (Integer) jo.get("badge");
+				try {
+					ShortcutBadger.setBadge(getApplicationContext(), badge);
+					callbackContext.success();
+				} catch (ShortcutBadgeException e) {
+					callbackContext.error(e.getMessage());
+				}
+			} catch (JSONException e) {
+				callbackContext.error(e.getMessage());
+			}
 		} else {
 			result = false;
 			Log.e(TAG, "Invalid action : " + action);
@@ -94,8 +110,8 @@ public class PushPlugin extends CordovaPlugin {
 	}
 
 	/*
-	 * Sends a json object to the client as parameter to a method which is defined in gECB.
-	 */
+	* Sends a json object to the client as parameter to a method which is defined in gECB.
+	*/
 	public static void sendJavascript(JSONObject _json) {
 		String _d = "javascript:" + gECB + "(" + _json.toString() + ")";
 		Log.v(TAG, "sendJavascript: " + _d);
@@ -106,9 +122,9 @@ public class PushPlugin extends CordovaPlugin {
 	}
 
 	/*
-	 * Sends the pushbundle extras to the client application.
-	 * If the client application isn't currently active, it is cached for later processing.
-	 */
+	* Sends the pushbundle extras to the client application.
+	* If the client application isn't currently active, it is cached for later processing.
+	*/
 	public static void sendExtras(Bundle extras)
 	{
 		if (extras != null) {
@@ -121,39 +137,39 @@ public class PushPlugin extends CordovaPlugin {
 		}
 	}
 
-    @Override
-    public void initialize(CordovaInterface cordova, CordovaWebView webView) {
-        super.initialize(cordova, webView);
-        gForeground = true;
-    }
+		@Override
+		public void initialize(CordovaInterface cordova, CordovaWebView webView) {
+				super.initialize(cordova, webView);
+				gForeground = true;
+		}
 
 	@Override
-    public void onPause(boolean multitasking) {
-        super.onPause(multitasking);
-        gForeground = false;
-        final NotificationManager notificationManager = (NotificationManager) cordova.getActivity().getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancelAll();
-    }
+		public void onPause(boolean multitasking) {
+				super.onPause(multitasking);
+				gForeground = false;
+				final NotificationManager notificationManager = (NotificationManager) cordova.getActivity().getSystemService(Context.NOTIFICATION_SERVICE);
+				notificationManager.cancelAll();
+		}
 
-    @Override
-    public void onResume(boolean multitasking) {
-        super.onResume(multitasking);
-        gForeground = true;
-    }
+		@Override
+		public void onResume(boolean multitasking) {
+				super.onResume(multitasking);
+				gForeground = true;
+		}
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        gForeground = false;
+		@Override
+		public void onDestroy() {
+				super.onDestroy();
+				gForeground = false;
 		gECB = null;
 		gWebView = null;
-    }
+		}
 
-    /*
-     * serializes a bundle to JSON.
-     */
-    private static JSONObject convertBundleToJson(Bundle extras)
-    {
+		/*
+		* serializes a bundle to JSON.
+		*/
+		private static JSONObject convertBundleToJson(Bundle extras)
+		{
 		try
 		{
 			JSONObject json;
@@ -231,15 +247,15 @@ public class PushPlugin extends CordovaPlugin {
 			Log.e(TAG, "extrasToJSON: JSON exception");
 		}
 		return null;
-    }
+		}
 
-    public static boolean isInForeground()
-    {
-      return gForeground;
-    }
+		public static boolean isInForeground()
+		{
+			return gForeground;
+		}
 
-    public static boolean isActive()
-    {
-    	return gWebView != null;
-    }
+		public static boolean isActive()
+		{
+			return gWebView != null;
+		}
 }
