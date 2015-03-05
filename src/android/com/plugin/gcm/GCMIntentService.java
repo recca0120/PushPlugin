@@ -84,13 +84,12 @@ public class GCMIntentService extends GCMBaseIntentService {
 		}
 	}
 
-	private void showBadge(Context context, Bundle extras) 
-	{		
+	private void showBadge(Context context, Bundle extras)
+	{
 		int badge = Integer.parseInt(extras.getString("badge"));
 		Log.d(TAG, "showBadge: " + badge);
 		try {
 			ShortcutBadger.setBadge(getApplicationContext(), badge);
-			Log.d(TAG, "showBadge worked!");  
 	    } catch (ShortcutBadgeException e) {
 	        Log.e(TAG, "showBadge failed: " + e.getMessage());
 	    }
@@ -124,6 +123,13 @@ public class GCMIntentService extends GCMBaseIntentService {
 				.setTicker(extras.getString("title"))
 				.setContentIntent(contentIntent)
 				.setAutoCancel(true);
+
+		boolean sound = Boolean.parseBoolean(extras.getString("sound", "true"));
+		if (sound) {
+			mBuilder.setDefaults(Notification.DEFAULT_ALL);
+		} else {
+			mBuilder.setDefaults(Notification.DEFAULT_LIGHTS);
+		}
 
 		String message = extras.getString("message");
 		if (message != null) {
