@@ -196,7 +196,7 @@
         [results setValue:dev.systemVersion forKey:@"deviceSystemVersion"];
 
         ready = YES;
-  
+
         NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
         [jsonStr appendFormat:@"\"token\":\"%@\", ", token];
         if (notificationMessage) {
@@ -222,16 +222,16 @@
 
 - (NSMutableString *) buildNotification:(NSDictionary *)notification escapeQuotes:(BOOL) escapeQuotes {
     NSMutableString *jsonStr = [NSMutableString stringWithString:@"{"];
-  
+
     [self parseDictionary:notificationMessage intoJSON:jsonStr];
-  
+
     if (isInline) {
         [jsonStr appendFormat:@"\"foreground\":\"%d\"", 1];
         isInline = NO;
     } else {
         [jsonStr appendFormat:@"\"foreground\":\"%d\"", 0];
     }
-  
+
     [jsonStr appendString:@"}"];
     if (escapeQuotes) {
         NSMutableString *escapedJsonStr = [[jsonStr stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""] mutableCopy];
@@ -242,7 +242,7 @@
 }
 
 - (void)notificationReceived {
-    if (!notificationMessage || !ready || !self.callback) {
+    if (!notificationMessage || !self.callback) {
         return;
     }
 
@@ -250,9 +250,18 @@
 
     NSLog(@"Msg: %@", jsonStr);
 
-    NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
-    NSString *result = [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
-  
+		if (ready) {
+		    NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
+		    [self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
+		} else {
+				double delayInSeconds = 2.0;
+				dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+
+				dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+						NSString * jsCallBack = [NSString stringWithFormat:@"%@(%@);", self.callback, jsonStr];
+						[self.webView stringByEvaluatingJavaScriptFromString:jsCallBack];
+				});
+		}
     self.notificationMessage = nil;
 }
 
@@ -286,7 +295,7 @@
 - (BOOL)checkNotificationType:(UIUserNotificationType)type
 {
   UIUserNotificationSettings *currentSettings = [[UIApplication sharedApplication] currentUserNotificationSettings];
-  
+
   return (currentSettings.types & type);
 }
 
@@ -302,7 +311,7 @@
 
 #ifdef __IPHONE_8_0
     // compile with Xcode 6 or higher (iOS SDK >= 8.0)
-  
+
     if(SYSTEM_VERSION_LESS_THAN(@"8.0"))
     {
        application.applicationIconBadgeNumber = badge;
@@ -317,11 +326,11 @@
        else
           NSLog(@"access denied for UIUserNotificationTypeBadge");
     }
-  
+
 #else
     // compile with Xcode 5 (iOS SDK < 8.0)
     application.applicationIconBadgeNumber = badgeNumber;
-  
+
 #endif
 
     [self successWithMessage:[NSString stringWithFormat:@"app badge count set to %d", badge]];
