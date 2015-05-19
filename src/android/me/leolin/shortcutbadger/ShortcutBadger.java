@@ -5,31 +5,91 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Build;
+import android.util.Log;
 import me.leolin.shortcutbadger.impl.*;
 
+import java.lang.reflect.Constructor;
+import java.util.LinkedList;
+import java.util.List;
+
+
 /**
- * Created with IntelliJ IDEA.
- * User: leolin
- * Date: 2013/11/14
- * Time: 下午5:51
- * To change this template use File | Settings | File Templates.
+ * @author Leo Lin
  */
 public abstract class ShortcutBadger {
-    private static final String HOME_PACKAGE_SONY = "com.sonyericsson.home";
-    private static final String HOME_PACKAGE_SAMSUNG = "com.sec.android.app.launcher";
-    private static final String HOME_PACKAGE_LG = "com.lge.launcher2";
-    private static final String HOME_PACKAGE_HTC = "com.htc.launcher";
-    private static final String HOME_PACKAGE_ANDROID = "com.android.launcher";
-    private static final String HOME_PACKAGE_APEX = "com.anddoes.launcher";
-    private static final String HOME_PACKAGE_ADW = "org.adw.launcher";
-    private static final String HOME_PACKAGE_ADW_EX = "org.adwfreak.launcher";
-    private static final String HOME_PACKAGE_NOVA = "com.teslacoilsw.launcher";
 
-    private static final String MESSAGE_NOT_SUPPORT_BADGE_COUNT = "ShortBadger is currently not support the badgeCount \"%d\"";
-    private static final String MESSAGE_NOT_SUPPORT_THIS_HOME = "ShortcutBadger is currently not support the home launcher package \"%s\"";
+    private static final String LOG_TAG = ShortcutBadger.class.getSimpleName();
 
-    private static final int MIN_BADGE_COUNT = 0;
-    private static final int MAX_BADGE_COUNT = 99;
+    private static final List<Class<? extends ShortcutBadger>> BADGERS = new LinkedList<Class<? extends ShortcutBadger>>();
+
+    static {
+        BADGERS.add(AdwHomeBadger.class);
+        BADGERS.add(ApexHomeBadger.class);
+        BADGERS.add(LGHomeBadger.class);
+        BADGERS.add(NewHtcHomeBadger.class);
+        BADGERS.add(NovaHomeBadger.class);
+        BADGERS.add(SamsungHomeBadger.class);
+        BADGERS.add(SolidHomeBadger.class);
+        BADGERS.add(SonyHomeBadger.class);
+        BADGERS.add(XiaomiHomeBadger.class);
+        BADGERS.add(AsusHomeLauncher.class);
+    }
+
+    private static ShortcutBadger mShortcutBadger;
+
+    public static ShortcutBadger with(Context context) {
+        return getShortcutBadger(context);
+    }
+
+
+    public static void setBadge(Context context, int badgeCount) throws ShortcutBadgeException {
+        try {
+            getShortcutBadger(context).executeBadge(badgeCount);
+        } catch (Throwable e) {
+            throw new ShortcutBadgeException("Unable to execute badge:" + e.getMessage());
+        }
+
+    }
+
+    private static ShortcutBadger getShortcutBadger(Context context) {
+        if (mShortcutBadger != null) {
+            return mShortcutBadger;
+        }
+        Log.d(LOG_TAG, "Finding badger");
+
+        //find the home launcher Package
+        try {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            ResolveInfo resolveInfo = context.getPackageManager().resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            String currentHomePackage = resolveInfo.activityInfo.packageName;
+
+            if (Build.MANUFACTURER.equalsIgnoreCase("Xiaomi")) {
+                mShortcutBadger = new XiaomiHomeBadger(context);
+                return mShortcutBadger;
+            }
+
+            for (Class<? extends ShortcutBadger> badger : BADGERS) {
+                Constructor<? extends ShortcutBadger> constructor = badger.getConstructor(Context.class);
+                ShortcutBadger shortcutBadger = constructor.newInstance(context);
+                if (shortcutBadger.getSupportLaunchers().contains(currentHomePackage)) {
+                    mShortcutBadger = shortcutBadger;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(LOG_TAG, e.getMessage(), e);
+        }
+
+        if (mShortcutBadger == null) {
+            mShortcutBadger = new DefaultBadger(context);
+        }
+
+        Log.d(LOG_TAG, "Returning badger:" + mShortcutBadger.getClass().getCanonicalName());
+        return mShortcutBadger;
+    }
+
 
     private ShortcutBadger() {
     }
@@ -42,53 +102,7 @@ public abstract class ShortcutBadger {
 
     protected abstract void executeBadge(int badgeCount) throws ShortcutBadgeException;
 
-    public static void setBadge(Context context, int badgeCount) throws ShortcutBadgeException {
-        //badgeCount should between 0 to 99
-        if (badgeCount < MIN_BADGE_COUNT || badgeCount > MAX_BADGE_COUNT) {
-            String exceptionMessage = String.format(MESSAGE_NOT_SUPPORT_BADGE_COUNT, badgeCount);
-            throw new ShortcutBadgeException(exceptionMessage);
-        }
-
-        //find the home launcher Package
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_HOME);
-        ResolveInfo resolveInfo = context.getPackageManager().resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
-        String currentHomePackage = resolveInfo.activityInfo.packageName;
-
-        //different home launcher packages use different way adding badges
-        ShortcutBadger mShortcutBadger = null;
-        if (HOME_PACKAGE_SONY.equals(currentHomePackage)) {
-            mShortcutBadger = new SonyHomeBadger(context);
-        } else if (HOME_PACKAGE_SAMSUNG.equals(currentHomePackage)) {
-            mShortcutBadger = new SamsungHomeBadger(context);
-        } else if (HOME_PACKAGE_LG.equals(currentHomePackage)) {
-            mShortcutBadger = new LGHomeBadger(context);
-        } else if (HOME_PACKAGE_HTC.equals(currentHomePackage)) {
-//            mShortcutBadger = new hTCHomeBadger(context);
-            mShortcutBadger = new NewHtcHomeBadger(context);
-        } else if (HOME_PACKAGE_ANDROID.equals(currentHomePackage)) {
-            mShortcutBadger = new AndroidHomeBadger(context);
-        } else if (HOME_PACKAGE_APEX.equals(currentHomePackage)) {
-            mShortcutBadger = new ApexHomeBadger(context);
-        } else if (HOME_PACKAGE_ADW.equals(currentHomePackage)
-                || HOME_PACKAGE_ADW_EX.equals(currentHomePackage)) {
-            mShortcutBadger = new AdwHomeBadger(context);
-        } else if (HOME_PACKAGE_NOVA.equals(currentHomePackage)) {
-            mShortcutBadger = new NovaHomeBadger(context);
-        }
-
-        //not support this home launcher package
-        if (mShortcutBadger == null) {
-            String exceptionMessage = String.format(MESSAGE_NOT_SUPPORT_THIS_HOME, currentHomePackage);
-            throw new ShortcutBadgeException(exceptionMessage);
-        }
-        try {
-            mShortcutBadger.executeBadge(badgeCount);
-        } catch (Throwable e) {
-            throw new ShortcutBadgeException("Unable to execute badge:" + e.getMessage());
-        }
-
-    }
+    protected abstract List<String> getSupportLaunchers();
 
     protected String getEntryActivityName() {
         ComponentName componentName = mContext.getPackageManager().getLaunchIntentForPackage(mContext.getPackageName()).getComponent();
@@ -97,5 +111,17 @@ public abstract class ShortcutBadger {
 
     protected String getContextPackageName() {
         return mContext.getPackageName();
+    }
+
+    public void count(int count) {
+        try {
+            executeBadge(count);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, e.getMessage(), e);
+        }
+    }
+
+    public void remove() {
+        count(0);
     }
 }
